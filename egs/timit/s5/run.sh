@@ -28,7 +28,7 @@ numLeavesSGMM=7000
 numGaussSGMM=9000
 
 feats_nj=10
-train_nj=30
+train_nj=10
 decode_nj=5
 
 echo ============================================================================
