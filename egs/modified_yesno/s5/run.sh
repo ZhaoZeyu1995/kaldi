@@ -3,13 +3,6 @@
 train_cmd="utils/run.pl"
 decode_cmd="utils/run.pl"
 
-#if [ ! -d waves_yesno ]; then
-  #wget http://www.openslr.org/resources/1/waves_yesno.tar.gz || exit 1;
-  ## was:
-  ## wget http://sourceforge.net/projects/kaldi/files/waves_yesno.tar.gz || exit 1;
-  #tar -xvzf waves_yesno.tar.gz || exit 1;
-#fi
-
 train_set=train_3gram
 test_set_suffix="yyn ynn 3gram sam_yyn sam_ynn sam_3gram sam_yyn_noise sam_ynn_noise sam_3gram_noise"
 ngauss=10
@@ -18,34 +11,42 @@ ngauss=10
 
 # Data preparation
 
-#local/prepare_data.py --dir /disk/scratch4/zzhao/Datasets/modified_yesno
+data_dir=/afs/inf.ed.ac.uk/user/s20/s2070789/Documents/Work/CSTR/lennoxtown/s3/data/modified_yesno
+
+#local/prepare_data.py --dir $data_dir
 #for x in train_yyn dev_yyn test_yyn train_ynn dev_ynn test_ynn train_3gram dev_3gram test_3gram; do
-    #sort data/$x/wav.scp > data/$x/wav.scp.sorted
-    #sort data/$x/text > data/$x/text.sorted
-    #sort data/$x/utt2spk > data/$x/utt2spk.sorted
-    #mv data/$x/wav.scp.sorted data/$x/wav.scp
-    #mv data/$x/text.sorted data/$x/text
-    #mv data/$x/utt2spk.sorted data/$x/utt2spk
+    #localdir=data/local/$x
+    #mkdir -p $localdir
+    #sort data/$x/wav.scp > $localdir/wav.scp
+    #sort data/$x/text > $localdir/text
+    #sort data/$x/utt2spk > $localdir/utt2spk
+    #cp $localdir/wav.scp data/$x/wav.scp
+    #cp $localdir/text data/$x/text
+    #cp $localdir/utt2spk data/$x/utt2spk
     #utils/utt2spk_to_spk2utt.pl <data/$x/utt2spk > data/$x/spk2utt
 #done
-#local/prepare_sam_data.py --dir /disk/scratch4/zzhao/Datasets/modified_yesno
+#local/prepare_sam_data.py --dir $data_dir
 #for x in test_sam_yyn test_sam_ynn test_sam_3gram; do
-    #sort data/$x/wav.scp > data/$x/wav.scp.sorted
-    #sort data/$x/text > data/$x/text.sorted
-    #sort data/$x/utt2spk > data/$x/utt2spk.sorted
-    #mv data/$x/wav.scp.sorted data/$x/wav.scp
-    #mv data/$x/text.sorted data/$x/text
-    #mv data/$x/utt2spk.sorted data/$x/utt2spk
+    #localdir=data/local/$x
+    #mkdir -p $localdir
+    #sort data/$x/wav.scp > $localdir/wav.scp
+    #sort data/$x/text > $localdir/text
+    #sort data/$x/utt2spk > $localdir/utt2spk
+    #cp $localdir/wav.scp data/$x/wav.scp
+    #cp $localdir/text data/$x/text
+    #cp $localdir/utt2spk data/$x/utt2spk
     #utils/utt2spk_to_spk2utt.pl <data/$x/utt2spk > data/$x/spk2utt
 #done
-#local/prepare_sam_noise_data.py --dir /disk/scratch4/zzhao/Datasets/modified_yesno
+#local/prepare_sam_noise_data.py --dir $data_dir
 #for x in test_sam_yyn_noise test_sam_ynn_noise test_sam_3gram_noise; do
-    #sort data/$x/wav.scp > data/$x/wav.scp.sorted
-    #sort data/$x/text > data/$x/text.sorted
-    #sort data/$x/utt2spk > data/$x/utt2spk.sorted
-    #mv data/$x/wav.scp.sorted data/$x/wav.scp
-    #mv data/$x/text.sorted data/$x/text
-    #mv data/$x/utt2spk.sorted data/$x/utt2spk
+    #localdir=data/local/$x
+    #mkdir -p $localdir
+    #sort data/$x/wav.scp > $localdir/wav.scp
+    #sort data/$x/text > $localdir/text
+    #sort data/$x/utt2spk > $localdir/utt2spk
+    #cp $localdir/wav.scp data/$x/wav.scp
+    #cp $localdir/text data/$x/text
+    #cp $localdir/utt2spk data/$x/utt2spk
     #utils/utt2spk_to_spk2utt.pl <data/$x/utt2spk > data/$x/spk2utt
 #done
 
@@ -71,9 +72,9 @@ ngauss=10
 #done
 
 # Mono training
-#steps/train_mono.sh --nj 1 --cmd "$train_cmd" \
-  #--totgauss ${ngauss}\
-  #data/${train_set} data/lang exp/mono_${train_set}_${ngauss}
+steps/train_mono.sh --nj 1 --cmd "$train_cmd" \
+  --totgauss ${ngauss}\
+  data/${train_set} data/lang exp/mono_${train_set}_${ngauss}
   
  #Graph compilation and decoding with correct G.fst
 for x in ${test_set_suffix}; do

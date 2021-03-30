@@ -36,7 +36,7 @@ if __name__ == '__main__':
                 file_path = os.path.join(dir, subdir, utt + '.wav')
                 wav_scp_content.append(uttid + ' ' + file_path)
                 text_content.append(uttid + ' ' + text)
-                utt2spk_content.append(uttid + ' ' + 'jarvis')
+                utt2spk_content.append(uttid + ' ' + uttid)
             with open(os.path.join(data_dir, 'wav.scp'), 'w') as f:
                 f.write('\n'.join(wav_scp_content) + '\n')
             with open(os.path.join(data_dir, 'text'), 'w') as f:
