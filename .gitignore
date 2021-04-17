@@ -81,6 +81,7 @@ venv/
 
 # /egs/
 /egs/*/*/mfcc
+/egs/*/*/fbank
 /egs/*/*/plp
 /egs/*/*/exp
 /egs/*/*/data
