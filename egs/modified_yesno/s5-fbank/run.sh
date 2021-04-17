@@ -5,7 +5,7 @@ decode_cmd="utils/run.pl"
 
 train_set=train_yyn
 test_set_suffix="yyn ynn 3gram sam_yyn sam_ynn sam_3gram sam_yyn_noise sam_ynn_noise sam_3gram_noise"
-ngauss=20
+ngauss=10
 
 #rm -rf exp mfcc
 
