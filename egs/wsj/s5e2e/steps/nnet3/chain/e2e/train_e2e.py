@@ -324,12 +324,14 @@ def train(args, run_opts):
                     {dir}/init.raw""".format(command=run_opts.command,
                                              dir=args.dir))
 
-    egs_left_context = left_context + args.frame_subsampling_factor / 2
+    # egs_left_context = left_context + args.frame_subsampling_factor / 2
     # added by Zeyu
+    egs_left_context = left_context + args.frame_subsampling_factor
     logger.info('left_context ' + str(left_context))
     logger.info('args.frame_subsampling_factor ' + str(args.frame_subsampling_factor))
+    egs_right_context = right_context 
     # added by Zeyu
-    egs_right_context = right_context + args.frame_subsampling_factor / 2
+    # egs_right_context = right_context + args.frame_subsampling_factor / 2
     egs_left_context_initial = (left_context_initial + args.frame_subsampling_factor / 2 if
                                 left_context_initial >= 0 else -1)
     egs_right_context_final = (right_context_final + args.frame_subsampling_factor / 2 if
@@ -424,7 +426,7 @@ def train(args, run_opts):
     logger.info("Training will run for {0} epochs = "
                 "{1} iterations".format(args.num_epochs, num_iters))
 
-    for iter in range(num_iters):
+    for iter in range(int(num_iters)):
 
         percent = num_archives_processed * 100.0 / num_archives_to_process
         epoch = (num_archives_processed * args.num_epochs

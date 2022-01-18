@@ -71,7 +71,7 @@ EOF
 fi
 
 lang=data/lang_e2e_char
-treedir=exp/chain/e2e_bichar_tree_tied1a
+treedir=exp/chain/e2e_bichar_tree_tied1a${affix}
 dir=exp/chain/e2e_tdnnf_bichar${affix}
 
 if [ $stage -le 0 ]; then

@@ -104,7 +104,7 @@ fi
 
 if [ $stage -le 5 ]; then
   echo "$0: calling the flat-start chain recipe..."
-  local/chain/e2e/run_tdnnf_flatstart_char.sh --train_set ${trainset}_spe2e_hires \ 
+  local/chain/e2e/run_tdnnf_flatstart_char.sh --train_set ${trainset}_spe2e_hires \
       --affix mfcc --input_dim 40 \
-      --test_set "test_dev93_hires test_eval92_hires"
+      --test_sets "test_dev93_hires test_eval92_hires"
 fi

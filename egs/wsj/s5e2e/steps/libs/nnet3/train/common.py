@@ -596,8 +596,8 @@ def get_model_combine_iters(num_iters, num_epochs,
     else:
         subsample_model_factor = 1
         num_iters_combine = min(max_models_combine, num_iters//2)
-        models_to_combine = set(range(num_iters - num_iters_combine + 1,
-                                      num_iters + 1))
+        models_to_combine = set(range(int(num_iters) - num_iters_combine + 1,
+                                      int(num_iters) + 1))
 
     return models_to_combine
 
