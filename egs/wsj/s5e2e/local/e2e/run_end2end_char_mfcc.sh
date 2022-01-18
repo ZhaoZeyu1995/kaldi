@@ -35,6 +35,7 @@ corpus=/group/corpora/public/wsj
 # _char for character-based dictionary and lang directories.
 
 if [ $stage -le 0 ]; then
+
   local/cstr_wsj_data_prep.sh $corpus 
   [[ -f data/local/dict_nosp/lexicon.txt ]] || \
     local/wsj_prepare_dict.sh --dict-suffix "_nosp"
@@ -60,20 +61,22 @@ if [ $stage -le 1 ]; then
 fi
 
 if [ $stage -le 2 ]; then
-  # make fbank-pitch features for the test data. 
-  if [ -f data/test_eval92/feats.scp ]; then
+  # make MFCC features for the test data. Only hires since it's flat-start.
+  if [ -f data/test_eval92_hires/feats.scp ]; then
     echo "$0: It seems that features for the test sets already exist."
     echo "skipping this stage..."
   else
-    echo "$0: extracting fbank-pitch features for the test sets"
+    echo "$0: extracting MFCC features for the test sets"
     for x in test_eval92 test_eval93 test_dev93; do
-      steps/make_fbank_pitch.sh --cmd "$train_cmd" --nj 20 data/${x}
-      steps/compute_cmvn_stats.sh data/${x}
+      cp -r data/$x data/${x}_hires
+      steps/make_mfcc.sh --cmd "$train_cmd" --nj 20 \
+                         --mfcc-config conf/mfcc_hires.conf data/${x}_hires
+      steps/compute_cmvn_stats.sh data/${x}_hires
     done
   fi
 fi
 
-if [ -f data/${trainset}_spEx/feats.scp ]; then
+if [ -f data/${trainset}_spEx_hires/feats.scp ]; then
   echo "$0: It seems that features for the perturbed training data already exist."
   echo "If you want to extract them anyway, remove them first and run this"
   echo "stage again. Skipping this stage..."
@@ -85,20 +88,23 @@ else
     # 12 in the following command means the allowed lengths are spaced
     # by 12% change in length.
     utils/data/perturb_speed_to_allowed_lengths.py 12 data/${trainset} \
-                                                   data/${trainset}_spe2e
-    cat data/${trainset}_spe2e/utt2dur | \
-      awk '{print $1 " " substr($1,5)}' >data/${trainset}_spe2e/utt2uniq
-    utils/fix_data_dir.sh data/${trainset}_spe2e
+                                                   data/${trainset}_spe2e_hires
+    cat data/${trainset}_spe2e_hires/utt2dur | \
+      awk '{print $1 " " substr($1,5)}' >data/${trainset}_spe2e_hires/utt2uniq
+    utils/fix_data_dir.sh data/${trainset}_spe2e_hires
   fi
 
   if [ $stage -le 4 ]; then
-    echo "$0: extracting fbank-pitch features for the training data..."
-    steps/make_fbank_pitch.sh --nj 20 --cmd "$train_cmd" data/${trainset}_spe2e
-    steps/compute_cmvn_stats.sh data/${trainset}_spe2e
+    echo "$0: extracting MFCC features for the training data..."
+    steps/make_mfcc.sh --nj 20 --mfcc-config conf/mfcc_hires.conf \
+                       --cmd "$train_cmd" data/${trainset}_spe2e_hires
+    steps/compute_cmvn_stats.sh data/${trainset}_spe2e_hires
   fi
 fi
 
 if [ $stage -le 5 ]; then
   echo "$0: calling the flat-start chain recipe..."
-  local/chain/e2e/run_tdnnf_flatstart_char.sh --train_set ${trainset}_spe2e --input_dim 83
+  local/chain/e2e/run_tdnnf_flatstart_char.sh --train_set ${trainset}_spe2e_hires \ 
+      --affix mfcc --input_dim 40 \
+      --test_set "test_dev93_hires test_eval92_hires"
 fi
