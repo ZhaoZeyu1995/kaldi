@@ -15,10 +15,10 @@ if [ $# -ne 3 ]; then
   exit 1;
 fi
 
-if [ "`basename $1`" != 13-32.1 ]; then
-  echo "Expecting the first argument to this script to end in 13-32.1"
-  exit 1
-fi
+#if [ "`basename $1`" != 13-32.1 ]; then
+  #echo "Expecting the first argument to this script to end in 13-32.1"
+  #exit 1
+#fi
 
 corpusdir=$1
 srcdir=$2

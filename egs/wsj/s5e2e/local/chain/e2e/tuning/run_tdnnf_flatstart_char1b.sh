@@ -96,7 +96,7 @@ if [ $stage -le 1 ]; then
              utils/sym2int.pl -f 2- data/lang_char/phones.txt \| \
              chain-est-phone-lm --num-extra-lm-states=2000 \
              ark:- $treedir/phone_lm.fst
-  steps/nnet3/chain/e2e/prepare_e2e.sh --nj 30 --cmd "$train_cmd" \
+  steps/nnet3/chain/e2e/prepare_e2e.sh --nj 20 --cmd "$train_cmd" \
                                        --type biphone \
                                        --shared-phones true \
                                        --tie true \
@@ -117,7 +117,7 @@ if [ $stage -le 2 ]; then
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
 
-  input dim=40 name=input
+  input dim=83 name=input
 
   relu-batchnorm-dropout-layer name=tdnn1 input=Append(-1,0,1) $tdnn_opts dim=1024
   tdnnf-layer name=tdnnf2 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=1
@@ -142,86 +142,86 @@ EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs
 fi
 
-if [ $stage -le 3 ]; then
-  # no need to store the egs in a shared storage because we always
-  # remove them. Anyway, it takes only 5 minutes to generate them.
+#if [ $stage -le 3 ]; then
+  ## no need to store the egs in a shared storage because we always
+  ## remove them. Anyway, it takes only 5 minutes to generate them.
 
-  steps/nnet3/chain/e2e/train_e2e.py --stage $train_stage \
-    --cmd "$decode_cmd" \
-    --feat.cmvn-opts "$cmvn_opts" \
-    --chain.leaky-hmm-coefficient 0.1 \
-    --chain.l2-regularize $l2_regularize \
-    --chain.apply-deriv-weights false \
-    --egs.dir "$common_egs_dir" \
-    --egs.stage $get_egs_stage \
-    --egs.opts "" \
-    --trainer.dropout-schedule $dropout_schedule \
-    --trainer.num-chunk-per-minibatch $minibatch_size \
-    --trainer.frames-per-iter $frames_per_iter \
-    --trainer.num-epochs $num_epochs \
-    --trainer.optimization.momentum 0 \
-    --trainer.optimization.num-jobs-initial $num_jobs_initial \
-    --trainer.optimization.num-jobs-final $num_jobs_final \
-    --trainer.optimization.initial-effective-lrate 0.0005 \
-    --trainer.optimization.final-effective-lrate 0.00005 \
-    --trainer.optimization.shrink-value 1.0 \
-    --trainer.max-param-change 2.0 \
-    --cleanup.remove-egs true \
-    --feat-dir data/${train_set} \
-    --tree-dir $treedir \
-    --dir $dir  || exit 1;
-fi
+  #steps/nnet3/chain/e2e/train_e2e.py --stage $train_stage \
+    #--cmd "$decode_cmd" \
+    #--feat.cmvn-opts "$cmvn_opts" \
+    #--chain.leaky-hmm-coefficient 0.1 \
+    #--chain.l2-regularize $l2_regularize \
+    #--chain.apply-deriv-weights false \
+    #--egs.dir "$common_egs_dir" \
+    #--egs.stage $get_egs_stage \
+    #--egs.opts "" \
+    #--trainer.dropout-schedule $dropout_schedule \
+    #--trainer.num-chunk-per-minibatch $minibatch_size \
+    #--trainer.frames-per-iter $frames_per_iter \
+    #--trainer.num-epochs $num_epochs \
+    #--trainer.optimization.momentum 0 \
+    #--trainer.optimization.num-jobs-initial $num_jobs_initial \
+    #--trainer.optimization.num-jobs-final $num_jobs_final \
+    #--trainer.optimization.initial-effective-lrate 0.0005 \
+    #--trainer.optimization.final-effective-lrate 0.00005 \
+    #--trainer.optimization.shrink-value 1.0 \
+    #--trainer.max-param-change 2.0 \
+    #--cleanup.remove-egs true \
+    #--feat-dir data/${train_set} \
+    #--tree-dir $treedir \
+    #--dir $dir  || exit 1;
+#fi
 
-if [ $stage -le 4 ]; then
-  # The reason we are using data/lang here, instead of $lang, is just to
-  # emphasize that it's not actually important to give mkgraph.sh the
-  # lang directory with the matched topology (since it gets the
-  # topology file from the model).  So you could give it a different
-  # lang directory, one that contained a wordlist and LM of your choice,
-  # as long as phones.txt was compatible.
+#if [ $stage -le 4 ]; then
+  ## The reason we are using data/lang here, instead of $lang, is just to
+  ## emphasize that it's not actually important to give mkgraph.sh the
+  ## lang directory with the matched topology (since it gets the
+  ## topology file from the model).  So you could give it a different
+  ## lang directory, one that contained a wordlist and LM of your choice,
+  ## as long as phones.txt was compatible.
 
-  utils/lang/check_phones_compatible.sh \
-    data/lang_char_test_tgpr/phones.txt $lang/phones.txt
-  utils/mkgraph.sh \
-    --self-loop-scale 1.0 data/lang_char_test_tgpr \
-    $dir $treedir/graph_tgpr || exit 1;
+  #utils/lang/check_phones_compatible.sh \
+    #data/lang_char_test_tgpr/phones.txt $lang/phones.txt
+  #utils/mkgraph.sh \
+    #--self-loop-scale 1.0 data/lang_char_test_tgpr \
+    #$dir $treedir/graph_tgpr || exit 1;
 
-  utils/lang/check_phones_compatible.sh \
-    data/lang_char_test_bd_tgpr/phones.txt $lang/phones.txt
-  utils/mkgraph.sh \
-    --self-loop-scale 1.0 data/lang_char_test_bd_tgpr \
-    $dir $treedir/graph_bd_tgpr || exit 1;
-fi
+  #utils/lang/check_phones_compatible.sh \
+    #data/lang_char_test_bd_tgpr/phones.txt $lang/phones.txt
+  #utils/mkgraph.sh \
+    #--self-loop-scale 1.0 data/lang_char_test_bd_tgpr \
+    #$dir $treedir/graph_bd_tgpr || exit 1;
+#fi
 
-if [ $stage -le 5 ]; then
-  frames_per_chunk=150
-  rm $dir/.error 2>/dev/null || true
+#if [ $stage -le 5 ]; then
+  #frames_per_chunk=150
+  #rm $dir/.error 2>/dev/null || true
 
-  for data in $test_sets; do
-    (
-      data_affix=$(echo $data | sed s/test_//)
-      nspk=$(wc -l <data/${data}_hires/spk2utt)
-      for lmtype in tgpr bd_tgpr; do
-        steps/nnet3/decode.sh \
-          --acwt 1.0 --post-decode-acwt 10.0 \
-          --extra-left-context-initial 0 \
-          --extra-right-context-final 0 \
-          --frames-per-chunk $frames_per_chunk \
-          --nj $nspk --cmd "$decode_cmd"  --num-threads 4 \
-          $treedir/graph_${lmtype} data/${data}_hires ${dir}/decode_${lmtype}_${data_affix} || exit 1
-      done
-      steps/lmrescore.sh \
-        --self-loop-scale 1.0 \
-        --cmd "$decode_cmd" data/lang_char_test_{tgpr,tg} \
-        data/${data}_hires ${dir}/decode_{tgpr,tg}_${data_affix} || exit 1
-      steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
-        data/lang_char_test_bd_{tgpr,fgconst} \
-       data/${data}_hires ${dir}/decode_${lmtype}_${data_affix}{,_fg} || exit 1
-    ) || touch $dir/.error &
-  done
-  wait
-  [ -f $dir/.error ] && echo "$0: there was a problem while decoding" && exit 1
-fi
+  #for data in $test_sets; do
+    #(
+      #data_affix=$(echo $data | sed s/test_//)
+      #nspk=$(wc -l <data/${data}_hires/spk2utt)
+      #for lmtype in tgpr bd_tgpr; do
+        #steps/nnet3/decode.sh \
+          #--acwt 1.0 --post-decode-acwt 10.0 \
+          #--extra-left-context-initial 0 \
+          #--extra-right-context-final 0 \
+          #--frames-per-chunk $frames_per_chunk \
+          #--nj $nspk --cmd "$decode_cmd"  --num-threads 4 \
+          #$treedir/graph_${lmtype} data/${data}_hires ${dir}/decode_${lmtype}_${data_affix} || exit 1
+      #done
+      #steps/lmrescore.sh \
+        #--self-loop-scale 1.0 \
+        #--cmd "$decode_cmd" data/lang_char_test_{tgpr,tg} \
+        #data/${data}_hires ${dir}/decode_{tgpr,tg}_${data_affix} || exit 1
+      #steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
+        #data/lang_char_test_bd_{tgpr,fgconst} \
+       #data/${data}_hires ${dir}/decode_${lmtype}_${data_affix}{,_fg} || exit 1
+    #) || touch $dir/.error &
+  #done
+  #wait
+  #[ -f $dir/.error ] && echo "$0: there was a problem while decoding" && exit 1
+#fi
 
-echo "Done. Date: $(date). Results:"
-local/chain/compare_wer.sh $dir
+#echo "Done. Date: $(date). Results:"
+#local/chain/compare_wer.sh $dir

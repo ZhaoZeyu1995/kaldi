@@ -180,6 +180,9 @@ def get_args():
 def process_args(args):
     """ Process the options got from get_args()
     """
+    # added by Zeyu
+    logger.info('args.chunk_left_context ' + str(args.chunk_left_context))
+    # added by Zeyu
 
     if not common_train_lib.validate_chunk_width(args.chunk_width):
         raise Exception("--egs.chunk-width has an invalid value");
@@ -294,6 +297,10 @@ def train(args, run_opts):
                         "{1}".format(str(e), '{0}/configs'.format(args.dir)))
 
     left_context = args.chunk_left_context + model_left_context
+    # added by Zeyu
+    logger.info('args.chunk_left_context ' + str(args.chunk_left_context))
+    logger.info('model_left_context ' + str(model_left_context))
+    # added by Zeyu
     right_context = args.chunk_right_context + model_right_context
     left_context_initial = (args.chunk_left_context_initial + model_left_context if
                             args.chunk_left_context_initial >= 0 else -1)
@@ -318,6 +325,10 @@ def train(args, run_opts):
                                              dir=args.dir))
 
     egs_left_context = left_context + args.frame_subsampling_factor / 2
+    # added by Zeyu
+    logger.info('left_context ' + str(left_context))
+    logger.info('args.frame_subsampling_factor ' + str(args.frame_subsampling_factor))
+    # added by Zeyu
     egs_right_context = right_context + args.frame_subsampling_factor / 2
     egs_left_context_initial = (left_context_initial + args.frame_subsampling_factor / 2 if
                                 left_context_initial >= 0 else -1)
