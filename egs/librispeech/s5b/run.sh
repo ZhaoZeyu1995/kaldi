@@ -29,8 +29,7 @@ if [ $stage -le 1 ]; then
   done
 
 
-  # download the LM resources
-  local/download_lm.sh $lm_url data/local/lm
+
 fi
 
 if [ $stage -le 2 ]; then
@@ -39,7 +38,10 @@ if [ $stage -le 2 ]; then
     # use underscore-separated names in data directories.
     local/data_prep.sh $data/LibriSpeech/$part data/$(echo $part | sed s/-/_/g)
   done
+  # download the LM resources
+  local/download_lm.sh $lm_url data/local/lm
 fi
+
 
 ## Optional text corpus normalization and LM training
 ## These scripts are here primarily as a documentation of the process that has been
