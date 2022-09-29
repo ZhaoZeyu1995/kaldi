@@ -264,7 +264,7 @@ fi
 if [ $stage -le 19 ]; then
   # this does some data-cleaning. The cleaned data should be useful when we add
   # the neural net and chain systems.  (although actually it was pretty clean already.)
-  local/run_cleanup_segmentation.sh
+  local/run_cleanup_segmentation.sh --nj 30
 fi
 
 # steps/cleanup/debug_lexicon.sh --remove-stress true  --nj 200 --cmd "$train_cmd" data/train_clean_100 \
