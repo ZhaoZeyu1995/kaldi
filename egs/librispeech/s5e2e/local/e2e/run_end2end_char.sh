@@ -10,7 +10,7 @@ set -euo pipefail
 
 
 stage=0
-trainset=train_si284
+trainset=train_clean_100
 . ./cmd.sh ## You'll want to change cmd.sh to something that will work
            ## on your system. This relates to the queue.
 
@@ -23,9 +23,8 @@ trainset=train_si284
 #wsj0=/data/corpora0/LDC93S6B
 #wsj1=/data/corpora0/LDC94S13B
 
-wsj0=/export/corpora5/LDC/LDC93S6B
-wsj1=/export/corpora5/LDC/LDC94S13B
-corpus=/group/corpora/public/wsj
+data=/disk/scratch3/zzhao/data/librispeech
+lm_url=www.openslr.org/resources/11
 
 . ./utils/parse_options.sh
 . ./path.sh
@@ -35,39 +34,37 @@ corpus=/group/corpora/public/wsj
 # _char for character-based dictionary and lang directories.
 
 if [ $stage -le 0 ]; then
-  [[ -d data/local/data ]] || \
-    local/cstr_wsj_data_prep.sh $corpus
-  [[ -f data/local/dict_nosp/lexicon.txt ]] || \
-    local/wsj_prepare_dict.sh --dict-suffix "_nosp"
+  # format the data as Kaldi data directories
+  for part in dev-clean test-clean dev-other test-other train-clean-100 train-clean-360 train-other-500; do
+    # use underscore-separated names in data directories.
+    local/data_prep.sh $data/LibriSpeech/$part data/$(echo $part | sed s/-/_/g)
+  done
 
-  local/wsj_prepare_char_dict.sh
+  # download the LM resources
+  local/download_lm.sh $lm_url data/local/lm
+  local/prepare_dict.sh --stage 3 --nj 30 --cmd "$train_cmd" \
+   data/local/lm data/local/lm data/local/dict_nosp
+
+  #local/librispeech_prepare_char_dict.sh
   utils/prepare_lang.sh data/local/dict_char \
                         "<SPOKEN_NOISE>" data/local/lang_tmp_char data/lang_char
-  local/wsj_format_data.sh --lang-suffix "_char"
-  echo "$0: Done preparing data & lang."
-fi
+  local/format_lms.sh --src-dir data/lang_char data/local/lm
 
-if [ $stage -le 1 ]; then
-  local/wsj_extend_char_dict.sh $corpus data/local/dict_char \
-                              data/local/dict_char_larger
-  utils/prepare_lang.sh data/local/dict_char_larger \
-                        "<SPOKEN_NOISE>" data/local/lang_larger_tmp \
-                        data/lang_char_bd
-  # Note: this will overwrite data/local/local_lm:
-  local/wsj_train_lms.sh --dict-suffix "_char"
-  local/wsj_format_local_lms.sh --lang-suffix "_char"
-  echo "$0: Done extending the vocabulary."
-  #exit 0;
+  utils/build_const_arpa_lm.sh data/local/lm/lm_tglarge.arpa.gz \
+    data/lang_char data/lang_char_test_tglarge
+  utils/build_const_arpa_lm.sh data/local/lm/lm_fglarge.arpa.gz \
+    data/lang_char data/lang_char_test_fglarge
+  echo "$0: Done preparing data & lang."
 fi
 
 if [ $stage -le 2 ]; then
   # make MFCC features for the test data. Only hires since it's flat-start.
-  if [ -f data/test_eval92_hires/feats.scp ]; then
+  if [ -f data/test_clean/feats.scp ]; then
     echo "$0: It seems that features for the test sets already exist."
     echo "skipping this stage..."
   else
     echo "$0: extracting MFCC features for the test sets"
-    for x in test_eval92 test_eval93 test_dev93; do
+    for x in dev_clean dev_other test_clean test_other; do
       mv data/$x data/${x}_hires
       steps/make_mfcc.sh --cmd "$train_cmd" --nj 10 \
                          --mfcc-config conf/mfcc_hires.conf data/${x}_hires
@@ -76,33 +73,23 @@ if [ $stage -le 2 ]; then
   fi
 fi
 
-if [ -f data/${trainset}_spEx_hires/feats.scp ]; then
-  echo "$0: It seems that features for the perturbed training data already exist."
-  echo "If you want to extract them anyway, remove them first and run this"
-  echo "stage again. Skipping this stage..."
-else
-  if [ $stage -le 3 ]; then
-    echo "$0: perturbing the training data to allowed lengths..."
-    utils/data/get_utt2dur.sh data/$trainset  # necessary for the next command
+if [ $stage -le 3 ]; then
+    echo "$0: extracting MFCC features for the training data..."
 
-    # 12 in the following command means the allowed lengths are spaced
-    # by 12% change in length.
-    utils/data/perturb_speed_to_allowed_lengths.py 12 data/${trainset} \
-                                                   data/${trainset}_spe2e_hires
+    utils/combine_data.sh data/train_960 data/train_clean_100 data/train_clean_360 data/train_other_500
+
+    utils/data/get_utt2dur.sh data/$trainset  # necessary for the next command
+    utils/data/perturb_speed_to_allowed_lengths.py 12 --speed-perturb false data/${trainset} data/${trainset}_spe2e_hires
+
     cat data/${trainset}_spe2e_hires/utt2dur | \
       awk '{print $1 " " substr($1,5)}' >data/${trainset}_spe2e_hires/utt2uniq
     utils/fix_data_dir.sh data/${trainset}_spe2e_hires
-  fi
-
-  if [ $stage -le 4 ]; then
-    echo "$0: extracting MFCC features for the training data..."
     steps/make_mfcc.sh --nj 10 --mfcc-config conf/mfcc_hires.conf \
-                       --cmd "$train_cmd" data/${trainset}_spe2e_hires
-    steps/compute_cmvn_stats.sh data/${trainset}_spe2e_hires
-  fi
+                     --cmd "$train_cmd" data/${x}_spe2e_hires
+    steps/compute_cmvn_stats.sh data/${x}
 fi
 
 if [ $stage -le 5 ]; then
   echo "$0: calling the flat-start chain recipe..."
-  local/chain/e2e/run_tdnnf_flatstart_char.sh
+  local/chain/e2e/run_lstm_flatstart_char.sh --train_set ${trainset}_spe2e_hires
 fi

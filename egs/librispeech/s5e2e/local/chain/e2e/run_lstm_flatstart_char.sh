@@ -44,15 +44,16 @@ affix=1b
 # training options
 dropout_schedule='0,0@0.20,0.5@0.50,0'
 num_epochs=10
-num_jobs_initial=2
-num_jobs_final=8
+num_jobs_initial=4
+num_jobs_final=4
 minibatch_size=150=128,64/300=64,32/600=32,16/1200=8
 common_egs_dir=
 l2_regularize=0.00005
+dim=512
 frames_per_iter=3000000
 cmvn_opts="--norm-means=false --norm-vars=false"
-train_set=train_si284_spe2e_hires
-test_sets="test_dev93 test_eval92"
+train_set=train_clean_25_spe2e_hires
+test_sets="dev_clean dev_other test_clean test_other"
 
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
@@ -71,7 +72,7 @@ fi
 
 lang=data/lang_e2e_char
 treedir=exp/chain/e2e_bichar_tree_tied1a
-dir=exp/chain/e2e_tdnnf_bichar${affix}
+dir=exp/chain/e2e_lstm_bichar${affix}
 
 if [ $stage -le 0 ]; then
   # Create a version of the lang/ directory that has one state per phone in the
@@ -97,7 +98,7 @@ if [ $stage -le 1 ]; then
              chain-est-phone-lm --num-extra-lm-states=2000 \
              ark:- $treedir/phone_lm.fst
   steps/nnet3/chain/e2e/prepare_e2e.sh --nj 10 --cmd "$train_cmd" \
-                                       --type biphone \
+                                       --type mono \
                                        --shared-phones true \
                                        --tie true \
                                        --min-biphone-count 100 \
@@ -108,35 +109,32 @@ fi
 if [ $stage -le 2 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
   num_targets=$(tree-info $treedir/tree | grep num-pdfs | awk '{print $2}')
-  tdnn_opts="l2-regularize=0.01 dropout-proportion=0.0 dropout-per-dim-continuous=true"
-  tdnnf_opts="l2-regularize=0.01 dropout-proportion=0.0 bypass-scale=0.66"
-  linear_opts="l2-regularize=0.01 orthonormal-constraint=-1.0"
-  prefinal_opts="l2-regularize=0.01"
-  output_opts="l2-regularize=0.005"
+
+  pdim=$[dim/4]
+  npdim=$[dim/4]
+  opts="l2-regularize=0.01"
+  lstm_opts="l2-regularize=0.0025"
+  output_opts="l2-regularize=0.0025"
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
 
   input dim=40 name=input
 
-  relu-batchnorm-dropout-layer name=tdnn1 input=Append(-1,0,1) $tdnn_opts dim=1024
-  tdnnf-layer name=tdnnf2 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=1
-  tdnnf-layer name=tdnnf3 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=1
-  tdnnf-layer name=tdnnf4 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=1
-  tdnnf-layer name=tdnnf5 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=0
-  tdnnf-layer name=tdnnf6 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf7 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf8 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf9 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf10 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf11 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf12 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  tdnnf-layer name=tdnnf13 $tdnnf_opts dim=1024 bottleneck-dim=128 time-stride=3
-  linear-component name=prefinal-l dim=192 $linear_opts
+  relu-batchnorm-layer name=tdnn1 input=Append(-1,0,1) dim=$dim $opts
+  relu-batchnorm-layer name=tdnn2 input=Append(-1,0,1) dim=$dim $opts
+  relu-batchnorm-layer name=tdnn3 input=Append(-1,0,1) dim=$dim $opts
 
+  # check steps/libs/nnet3/xconfig/lstm.py for the other options and defaults
+  fast-lstmp-layer name=fastlstm1 cell-dim=$dim recurrent-projection-dim=$pdim non-recurrent-projection-dim=$npdim delay=-3 $lstm_opts
+  relu-batchnorm-layer name=tdnn4 input=Append(-3,0,3) dim=$dim $opts
+  relu-batchnorm-layer name=tdnn5 input=Append(-3,0,3) dim=$dim $opts
+  fast-lstmp-layer name=fastlstm2 cell-dim=$dim recurrent-projection-dim=$pdim non-recurrent-projection-dim=$npdim delay=-3 $lstm_opts
+  relu-batchnorm-layer name=tdnn6 input=Append(-3,0,3) dim=$dim $opts
+  relu-batchnorm-layer name=tdnn7 input=Append(-3,0,3) dim=$dim $opts
+  fast-lstmp-layer name=fastlstm3 cell-dim=$dim recurrent-projection-dim=$pdim non-recurrent-projection-dim=$npdim delay=-3 $lstm_opts
 
-  prefinal-layer name=prefinal-chain input=prefinal-l $prefinal_opts big-dim=1024 small-dim=192
-  output-layer name=output include-log-softmax=false dim=$num_targets $output_opts
+  output-layer name=output include-log-softmax=true dim=$num_targets max-change=1.5 $output_opts
 
 EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs
@@ -146,7 +144,7 @@ if [ $stage -le 3 ]; then
   # no need to store the egs in a shared storage because we always
   # remove them. Anyway, it takes only 5 minutes to generate them.
 
-  steps/nnet3/chain/e2e/train_e2e.py --stage 180 \
+  steps/nnet3/chain/e2e/train_e2e.py --stage ${train_stage}\
     --cmd "$decode_cmd" \
     --feat.cmvn-opts "$cmvn_opts" \
     --chain.leaky-hmm-coefficient 0.1 \
@@ -182,16 +180,16 @@ if [ $stage -le 4 ]; then
   # as long as phones.txt was compatible.
 
   utils/lang/check_phones_compatible.sh \
-    data/lang_char_test_tgpr/phones.txt $lang/phones.txt
+    data/lang_char_test_tgsmall/phones.txt $lang/phones.txt
   utils/mkgraph.sh \
-    --self-loop-scale 1.0 data/lang_char_test_tgpr \
-    $dir $treedir/graph_tgpr || exit 1;
+    --self-loop-scale 1.0 data/lang_char_test_tgsmall \
+    $dir $treedir/graph_tgsmall || exit 1;
 
   utils/lang/check_phones_compatible.sh \
-    data/lang_char_test_bd_tgpr/phones.txt $lang/phones.txt
+    data/lang_char_test_tgmed/phones.txt $lang/phones.txt
   utils/mkgraph.sh \
-    --self-loop-scale 1.0 data/lang_char_test_bd_tgpr \
-    $dir $treedir/graph_bd_tgpr || exit 1;
+    --self-loop-scale 1.0 data/lang_char_test_tgmed \
+    $dir $treedir/graph_tgmed || exit 1;
 fi
 
 if [ $stage -le 5 ]; then
@@ -200,24 +198,25 @@ if [ $stage -le 5 ]; then
 
   for data in $test_sets; do
     (
-      data_affix=$(echo $data | sed s/test_//)
+      # get rid of clean suffix
+      data_affix=$data
       nspk=$(wc -l <data/${data}_hires/spk2utt)
-      for lmtype in tgpr bd_tgpr; do
+      for lmtype in tgsmall tgmed; do
         steps/nnet3/decode.sh \
           --acwt 1.0 --post-decode-acwt 10.0 \
           --extra-left-context-initial 0 \
           --extra-right-context-final 0 \
           --frames-per-chunk $frames_per_chunk \
-          --nj $nspk --cmd "$decode_cmd"  --num-threads 4 \
-          $treedir/graph_${lmtype} data/${data}_hires ${dir}/decode_${lmtype}_${data_affix} || exit 1
+          --nj 2 --cmd "$decode_cmd"  --num-threads 4 \
+          $treedir/graph_${lmtype} data/${data}_hires ${dir}/decode_${data_affix}_${lmtype} || exit 1
       done
-      steps/lmrescore.sh \
-        --self-loop-scale 1.0 \
-        --cmd "$decode_cmd" data/lang_char_test_{tgpr,tg} \
-        data/${data}_hires ${dir}/decode_{tgpr,tg}_${data_affix} || exit 1
+
       steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
-        data/lang_char_test_bd_{tgpr,fgconst} \
-       data/${data}_hires ${dir}/decode_${lmtype}_${data_affix}{,_fg} || exit 1
+        data/lang_char_test_{tgsmall,tglarge} \
+       data/${data}_hires ${dir}/decode_${data_affix}_tgsmall ${dir}/decode_${data_affix}_tglarge || exit 1
+      steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
+        data/lang_char_test_{tgsmall,fglarge} \
+       data/${data}_hires ${dir}/decode_${data_affix}_tgsmall ${dir}/decode_${data_affix}_fglarge || exit 1
     ) || touch $dir/.error &
   done
   wait

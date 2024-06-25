@@ -180,9 +180,6 @@ def get_args():
 def process_args(args):
     """ Process the options got from get_args()
     """
-    # added by Zeyu
-    logger.info('args.chunk_left_context ' + str(args.chunk_left_context))
-    # added by Zeyu
 
     if not common_train_lib.validate_chunk_width(args.chunk_width):
         raise Exception("--egs.chunk-width has an invalid value");
@@ -297,10 +294,6 @@ def train(args, run_opts):
                         "{1}".format(str(e), '{0}/configs'.format(args.dir)))
 
     left_context = args.chunk_left_context + model_left_context
-    # added by Zeyu
-    logger.info('args.chunk_left_context ' + str(args.chunk_left_context))
-    logger.info('model_left_context ' + str(model_left_context))
-    # added by Zeyu
     right_context = args.chunk_right_context + model_right_context
     left_context_initial = (args.chunk_left_context_initial + model_left_context if
                             args.chunk_left_context_initial >= 0 else -1)
@@ -324,14 +317,8 @@ def train(args, run_opts):
                     {dir}/init.raw""".format(command=run_opts.command,
                                              dir=args.dir))
 
-    # egs_left_context = left_context + args.frame_subsampling_factor / 2
-    # added by Zeyu
-    egs_left_context = left_context + args.frame_subsampling_factor
-    logger.info('left_context ' + str(left_context))
-    logger.info('args.frame_subsampling_factor ' + str(args.frame_subsampling_factor))
-    egs_right_context = right_context 
-    # added by Zeyu
-    # egs_right_context = right_context + args.frame_subsampling_factor / 2
+    egs_left_context = left_context + args.frame_subsampling_factor // 2
+    egs_right_context = right_context + args.frame_subsampling_factor // 2
     egs_left_context_initial = (left_context_initial + args.frame_subsampling_factor / 2 if
                                 left_context_initial >= 0 else -1)
     egs_right_context_final = (right_context_final + args.frame_subsampling_factor / 2 if
@@ -436,9 +423,10 @@ def train(args, run_opts):
             logger.info("Exiting early due to --exit-stage {0}".format(iter))
             return
 
-        current_num_jobs = common_train_lib.get_current_num_jobs(
-            iter, num_iters,
-            args.num_jobs_initial, args.num_jobs_step, args.num_jobs_final)
+        # current_num_jobs = common_train_lib.get_current_num_jobs(
+            # iter, num_iters,
+            # args.num_jobs_initial, args.num_jobs_step, args.num_jobs_final)
+        current_num_jobs = 1
 
         if args.stage <= iter:
             model_file = "{dir}/{iter}.mdl".format(dir=args.dir, iter=iter)

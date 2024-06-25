@@ -596,8 +596,8 @@ def get_model_combine_iters(num_iters, num_epochs,
     else:
         subsample_model_factor = 1
         num_iters_combine = min(max_models_combine, num_iters//2)
-        models_to_combine = set(range(num_iters - num_iters_combine + 1,
-                                      num_iters + 1))
+        models_to_combine = set(range(int(num_iters - num_iters_combine + 1),
+                                      int(num_iters + 1)))
 
     return models_to_combine
 
@@ -667,7 +667,7 @@ def clean_nnet_dir(nnet_dir, num_iters, egs_dir,
         if remove_egs:
             remove_nnet_egs(egs_dir)
 
-        for iter in range(num_iters):
+        for iter in range(int(num_iters)):
             remove_model(nnet_dir, iter, num_iters, None,
                          preserve_model_interval,
                          get_raw_nnet_from_am=get_raw_nnet_from_am)

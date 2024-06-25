@@ -616,7 +616,7 @@ def combine_models(dir, num_iters, models_to_combine, num_chunk_per_minibatch_st
                     l2=l2_regularize, leaky=leaky_hmm_coefficient,
                     dir=dir, raw_models=" ".join(raw_model_strings),
                     num_chunk_per_mb=num_chunk_per_minibatch_str,
-                    num_iters=num_iters,
+                    num_iters=int(num_iters),
                     egs_dir=egs_dir,
                     multitask_egs_opts=multitask_egs_opts,
                     scp_or_ark=scp_or_ark, egs_suffix=egs_suffix))

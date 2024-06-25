@@ -185,7 +185,7 @@ def train_new_models(dir, iter, srand, num_jobs,
                           if job == 1 else ""))
 
         thread = common_lib.background_command(
-            """{command} {train_queue_opt} {dir}/log/train.{iter}.{job}.log \
+            """sleep {time}; {command} {train_queue_opt} {dir}/log/train.{iter}.{job}.log \
                     nnet3-chain-train {parallel_train_opts} {verbose_opt} \
                     --apply-deriv-weights={app_deriv_wts} \
                     --l2-regularize={l2} --leaky-hmm-coefficient={leaky} \
@@ -205,6 +205,7 @@ def train_new_models(dir, iter, srand, num_jobs,
                         --srand={srand} ark:- ark:- | nnet3-chain-merge-egs \
                         --minibatch-size={num_chunk_per_mb} ark:- ark:- |" \
                     {dir}/{next_iter}.{job}.raw""".format(
+                        time=((job-1)*10),
                         command=run_opts.command,
                         train_queue_opt=run_opts.train_queue_opt,
                         dir=dir, iter=iter, srand=iter + srand,
@@ -616,7 +617,7 @@ def combine_models(dir, num_iters, models_to_combine, num_chunk_per_minibatch_st
                     l2=l2_regularize, leaky=leaky_hmm_coefficient,
                     dir=dir, raw_models=" ".join(raw_model_strings),
                     num_chunk_per_mb=num_chunk_per_minibatch_str,
-                    num_iters=num_iters,
+                    num_iters=int(num_iters),
                     egs_dir=egs_dir,
                     multitask_egs_opts=multitask_egs_opts,
                     scp_or_ark=scp_or_ark, egs_suffix=egs_suffix))
