@@ -4,14 +4,9 @@
 . ./path.sh
 
 # Path to Fisher transcripts LM interpolation (if not defined only AMI transcript LM is built),
-case $(hostname -d) in
-  fit.vutbr.cz) FISHER_TRANS=/mnt/matylda2/data/FISHER/fe_03_p1_tran ;; # BUT,
-  clsp.jhu.edu) FISHER_TRANS=/export/corpora4/ami/fisher_trans/part1 ;; # JHU,
-  cstr.ed.ac.uk) FISHER_TRANS=`pwd`/eddie_data/lm/data/fisher/part1 ;; # Edinburgh,
-  *) echo "Please modify the script to add your loaction of the Fisher transcripts, or modify this script."; exit 1;;
-esac
+
 # Or select manually,
-# FISHER_TRANS=...
+FISHER_TRANS=$LOCAL_HOME/data/fisher
 # Note: if you don't have the Fisher data, you can remove the --fisher $FISHER_TRANS
 # option to local/ami_train_lms.sh below, and remove the case statement above.
 
